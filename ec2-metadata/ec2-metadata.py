@@ -53,10 +53,10 @@ def find_key(key):
     return list(expand_dict(key, metadata))
 
 if __name__ == '__main__':
-    key = input("What would you like to find?\nkey | metadata\n")
-    if key=="key":
+    key = input("What would you like to find?\nk for key | m for metadata\n")
+    if key=="k":
         key2 = input("Enter the key you need value for?\n")
         print(find_key(key2))
-    elif key=="metadata":    
+    elif key=="m":    
         print(get_metadata_json())
     else: print("Invalid key entered")
