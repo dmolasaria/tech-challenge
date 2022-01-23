@@ -1,0 +1,9 @@
+example:
+
+object:{"1":{"2":{"3":{"4":{"5":{"6":"7"}}}}}}
+key: 1/2/3/4/5/6
+output: 7
+
+object:{"a":{"b":{"c":{"d":{"e":{"f":"g"}}}}}}
+key: a/b/c/d/e/f
+output:g

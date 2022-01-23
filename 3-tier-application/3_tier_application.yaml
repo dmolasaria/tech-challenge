@@ -1,0 +1,535 @@
+Description:  Creates VPC, EC2s, RDS and ALB.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+
+# Parameter Groups    
+    ParameterGroups:
+      - Label:
+          default: VPC
+        Parameters:
+          - VpcCIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - AppPrivateSubnet1CIDR
+          - AppPrivateSubnet2CIDR
+          - DbPrivateSubnet1CIDR
+          - DbPrivateSubnet2CIDR
+      - Label:
+          default: EC2
+        Parameters:
+          - InstanceType
+          - AmiId
+          - KeyPair
+          - Workload
+      - Label:
+          default: RDS
+        Parameters:
+          - DBInstanceClass
+          - DBPassword
+
+# Parameter Labels
+    ParameterLabels:
+      Workload:
+        default: Workload Name
+      VpcCIDR:
+        default: VPC CIDR
+      PublicSubnet1CIDR:
+        default: Public Subnet 1 CIDR
+      PublicSubnet2CIDR:
+        default: Public Subnet 2 CIDR
+      AppPrivateSubnet1CIDR:
+        default: App Subnet 1 CIDR
+      AppPrivateSubnet2CIDR:
+        default: App Subnet 2 CIDR
+      DbPrivateSubnet1CIDR:
+        default: DB Subnet 1 CIDR
+      DbPrivateSubnet2CIDR:
+        default: DB Subnet 2 CIDR
+      InstanceType:
+        default: Instance Type
+      AmiId:
+        default: AMI ID
+      KeyPair:
+        default: EC2 KeyPair
+      DBPassword:
+        default: Database Password
+      DBInstanceClass:
+        default: Database Instance Type
+
+# Parameters         
+Parameters:
+  Workload:
+    Description: Workload name which will be used as name tag
+    Type: String
+    Default: MyWorkload
+
+# VPC Parameters
+  VpcCIDR:
+    Description: Enter the IP range for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnet1CIDR:
+    Description: Enter the IP range for the public subnet in the first AZ
+    Type: String
+    Default: 10.0.10.0/24
+  PublicSubnet2CIDR:
+    Description: Enter the IP range for the public subnet in the second AZ
+    Type: String
+    Default: 10.0.11.0/24
+  AppPrivateSubnet1CIDR:
+    Description: Enter the IP range for the AppPrivate subnet in the first AZ
+    Type: String
+    Default: 10.0.20.0/24
+  AppPrivateSubnet2CIDR:
+    Description: Enter the IP range for the AppPrivate subnet in the second AZ
+    Type: String
+    Default: 10.0.21.0/24
+  DbPrivateSubnet1CIDR:
+    Description: Enter the IP range for the DbPrivate subnet in the first AZ
+    Type: String
+    Default: 10.0.22.0/24
+  DbPrivateSubnet2CIDR:
+    Description: Enter the IP range for the DbPrivate subnet in the second AZ
+    Type: String
+    Default: 10.0.23.0/24
+
+# EC2 Parameters
+  InstanceType:
+    Description: Select the EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+  AmiId:
+    Description: Enter the AMI ID for EC2
+    Type: String
+    Default: 'ami-08e4e35cccc6189f4' 
+  KeyPair:
+    Description: Select the KeyPair for EC2
+    Type: AWS::EC2::KeyPair::KeyName
+
+# RDS Parameters
+  DBPassword:
+    NoEcho: 'true'
+    Description: Database admin account password
+    Type: String
+  DBInstanceClass:
+    Description: Database instance type
+    Type: String
+    Default: db.t2.micro	
+    AllowedValues: [db.t2.micro, db.t2.small, db.t3.medium, db.t3.large]
+
+
+Resources:
+# VPC creation
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref Workload
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref Workload
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Subnet (AZ1)
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Subnet (AZ2)
+
+  AppPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref AppPrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} AppPrivate Subnet (AZ1)
+
+  AppPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref AppPrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} AppPrivate Subnet (AZ2)
+
+  DbPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref DbPrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} DbPrivate Subnet (AZ1)
+
+  DbPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref DbPrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} DbPrivate Subnet (AZ2)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateAppSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref AppPrivateSubnet1
+
+  PrivateDbSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref DbPrivateSubnet1      
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateAppSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref AppPrivateSubnet2
+
+  PrivateDbSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref DbPrivateSubnet2
+
+# Security group creation
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "elb-sg"
+      GroupDescription: "Security group for the elb"
+      VpcId: !Ref VPC
+      SecurityGroupIngress: 
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "ec2-sg"
+      GroupDescription: "Security group for the ec2"
+      VpcId: !Ref VPC
+      SecurityGroupIngress: 
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        SourceSecurityGroupId: !Ref ELBSecurityGroup 
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "db-sg"
+      GroupDescription: "Security group for the db"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:  
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !Ref EC2SecurityGroup   
+
+# EC2 creation
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref AppServerRole
+  AppServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      RoleName: !Sub "ec2-role-${AWS::StackName}"
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Effect: Allow
+        Version: "2012-10-17"
+
+  EC2InstanceAz1:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref AppInstanceProfile
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SubnetId: !Ref AppPrivateSubnet1
+      SecurityGroupIds: 
+        - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Instance AZ1
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: 50
+  
+  EC2InstanceAz2:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref AppInstanceProfile
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SubnetId: !Ref AppPrivateSubnet2
+      SecurityGroupIds: 
+        - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Instance AZ1
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: 50        
+
+# ALB Creation
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref Workload
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref ELBSecurityGroup
+      Subnets: 
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: Name 
+          Value: !Ref Workload
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: "200"
+      Name: !Ref Workload
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      Targets:
+        - Id: !Ref EC2InstanceAz1
+        - Id: !Ref EC2InstanceAz2
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: ALBTargetGroup
+
+# RDS creation
+  
+  DBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: RDS subnet group
+      SubnetIds:
+        - !Ref DbPrivateSubnet1
+        - !Ref DbPrivateSubnet2
+
+  RDS:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBName: !Ref Workload
+      DBInstanceIdentifier: !Ref Workload
+      AllocatedStorage: '5'
+      DBInstanceClass: !Ref 'DBInstanceClass'
+      Engine: MySQL
+      MasterUsername: !Ref Workload
+      MasterUserPassword: !Ref 'DBPassword'
+      MultiAZ: 'true'
+      VPCSecurityGroups: 
+        - !Ref DatabaseSecurityGroup
+      Tags:
+        - Key: Name
+          Value: RDS Master
+  ReplicaDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      SourceDBInstanceIdentifier: !Ref RDS
+      DBInstanceClass: !Ref 'DBInstanceClass'
+      Tags:
+      - Key: Name
+        Value: Read Replica
+
+Outputs:
+
+# VPC output
+  VPC:
+    Description: VPC ID
+    Value: !Ref VPC
+
+# EC2 output
+  EC2InstanceAz1PrivateIpAddress:
+    Description: Instance IP address
+    Value:
+      Fn::GetAtt:
+        - EC2InstanceAz1
+        - PrivateIp
+  EC2InstanceAz2PrivateIpAddress:
+    Description: Instance IP address
+    Value:
+      Fn::GetAtt:
+        - EC2InstanceAz2
+        - PrivateIp
+
+# ALB output
+  AlbDNS:
+    Description: ALB DNS
+    Value:
+      Fn::GetAtt:
+          - ALB
+          - DNSName
+
+# RDS output
+  MasterJDBCConnectionString:
+    Description: JDBC connection string for the master database
+    Value: !Join ['', ['jdbc:mysql://', !GetAtt [RDS, Endpoint.Address], ':',
+        !GetAtt [RDS, Endpoint.Port], /, !Ref Workload]]
+  ReplicaJDBCConnectionString:
+    Description: JDBC connection string for the replica database
+    Value: !Join ['', ['jdbc:mysql://', !GetAtt [ReplicaDB, Endpoint.Address], ':',
+        !GetAtt [ReplicaDB, Endpoint.Port], /, !Ref Workload]]

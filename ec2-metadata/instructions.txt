@@ -1,0 +1,10 @@
+install requests by "pip install requests"
+
+execute ec2-metadata.py
+
+type key or metadata
+
+metadata: will display instance metadata in json
+
+key: enter key e.g. hostname, instance-type
+it will display value for that key
