@@ -2,9 +2,9 @@ install requests by "pip install requests"
 
 execute ec2-metadata.py
 
-type key or metadata
+type k or m
 
-metadata: will display instance metadata in json
+m: will display instance metadata in json
 
-key: enter key e.g. hostname, instance-type
+k: enter key e.g. hostname, instance-type
 it will display value for that key
